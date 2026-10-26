@@ -39,6 +39,38 @@ function result(fn: () => number): number | string {
 describe.each(Object.entries(encodings))(
   '%s incremental counting',
   (_, encoding) => {
+    test.each([
+      undefined,
+      'all',
+      new Set([EndOfText]),
+    ] satisfies EncodeOptions['allowedSpecial'][])(
+      'rejects explicit exclusions independently: %j',
+      (allowedSpecial) => {
+        const disallowedSpecial = new Set([EndOfText])
+        const counter = encoding.createIncrementalCounter({
+          allowedSpecial,
+          disallowedSpecial,
+        })
+        // Later caller mutations must not disable the snapshotted policy.
+        disallowedSpecial.clear()
+        const before = `stable words <|endofXtext|> after`
+        const expected = encoding.countTokens(before)
+        counter.update(before)
+        const position = before.indexOf('X')
+        for (const edit of [
+          () => counter.update(EndOfText),
+          () => counter.append(EndOfText),
+          () => counter.applyEdit(position, 1, ''),
+        ]) {
+          expect(edit).toThrowError(/Disallowed special token found/)
+          expect(counter.count()).toBe(expected)
+        }
+        expect(counter.append(' next')).toBe(
+          encoding.countTokens(before + ' next'),
+        )
+      },
+    )
+
     test('append, replacement, deletion, update and reset', () => {
       const counter = encoding.createIncrementalCounter()
       expect(counter.count()).toBe(0)

@@ -333,6 +333,10 @@ export class GptEncoding {
       }
     }
 
+    if (!regexPattern && disallowedSpecial.size > 0) {
+      regexPattern = getSpecialTokenRegex(new Set(disallowedSpecial))
+    }
+
     return { allowedSpecial, regexPattern }
   }
 
